@@ -58,7 +58,8 @@ page=shell+body('pages').replace('<script>\nconst BUILD_TARGET','<script defer>\
 page=page.replace('<script>\nconst BUILD_TARGET="pages";','<script>\ndocument.addEventListener("DOMContentLoaded",function(){\nconst BUILD_TARGET="pages";')
 page=page.replace('\nboot();\n</script>','\nboot();\n});\n</script>')+'<script>if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js");</script>\n</body>\n</html>\n'
 wr('docs/index.html',page)
-ver=hashlib.sha1(page.encode()).hexdigest()[:10]
+cfg_path=os.path.join(R,'docs/firebase-config.js')
+ver=hashlib.sha1(page.encode()+(open(cfg_path,'rb').read() if os.path.exists(cfg_path) else b'')).hexdigest()[:10]
 wr('docs/manifest.webmanifest',json.dumps({
   "name":"牌桌學堂","short_name":"牌桌學堂","description":"德州撲克與台灣16張麻將練牌室，含教練提示與線上對戰。",
   "lang":"zh-Hant","start_url":"./","scope":"./","display":"standalone","orientation":"any",
@@ -75,8 +76,8 @@ self.addEventListener('fetch',e=>{
   const u=new URL(e.request.url);
   if(e.request.method!=='GET'||/firebaseio|googleapis\\.com\\/identitytoolkit|securetoken|firebasedatabase/.test(u.host+u.pathname))return;
   const sameOrigin=u.origin===location.origin;
-  if(sameOrigin&&(e.request.mode==='navigate'||u.pathname.endsWith('.html')||u.pathname.endsWith('/'))){
-    // pages: network first so updates show up, cache when offline
+  if(sameOrigin&&(e.request.mode==='navigate'||u.pathname.endsWith('.html')||u.pathname.endsWith('/')||u.pathname.endsWith('firebase-config.js'))){
+    // pages and the Firebase config: network first so updates show up, cache when offline
     e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r;}).catch(()=>caches.match(e.request).then(r=>r||caches.match('index.html'))));
     return;
   }
