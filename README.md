@@ -56,6 +56,8 @@ npm run serve           # 在 http://localhost:8000 試玩
 
 網站本身放在 GitHub Pages（只能放靜態檔案），線上對戰的即時同步用免費的 Firebase 即時資料庫。沒設定之前，線上頁只能用「本機測試」（同一個瀏覽器開兩個分頁對戰）。
 
+**目前狀態：** 已接上 Firebase 專案 `card-game-test-73b2a`（即時資料庫在新加坡 `asia-southeast1`，匿名登入、`midssinglin.github.io` 授權網域與安全規則都已設定）。以下步驟留作日後重建或換專案時參考。
+
 1. 到 [Firebase 主控台](https://console.firebase.google.com/) 建立專案（不需要 Google Analytics）。
 2. **Authentication** → 開始使用 → 登入方式 → 啟用 **匿名**。
 3. **Authentication** → 設定 → 授權網域 → 新增 `midssinglin.github.io`。
