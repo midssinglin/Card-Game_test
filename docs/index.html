@@ -3876,6 +3876,8 @@ async function netInit(mode){
   if(mode==='firebase'){
     if(!firebaseConfigured())throw new Error('還沒有填入 Firebase 設定（見 README「線上對戰設定」）。');
     if(!firebase.apps.length)firebase.initializeApp(window.FIREBASE_CONFIG);
+    // each browser tab is its own player: keep the anonymous login per tab
+    try{await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);}catch(_){}
     const cred=await firebase.auth().signInAnonymously();
     NET.uid=cred.user.uid;NET.db=firebase.database();
   }else{
