@@ -9,7 +9,13 @@ function deepMerge(a,b){for(const k in b){if(!(k in a))continue;if(b[k]&&typeof 
 let SET=JSON.parse(JSON.stringify(SET_DEFAULT));
 try{const s=JSON.parse(localStorage.getItem('ptx-settings')||'null');if(s)deepMerge(SET,s);}catch(_){}
 function saveSet(){try{localStorage.setItem('ptx-settings',JSON.stringify(SET));}catch(_){}}
-const hintMode=()=>SET.coach?SET.hint:'off';
+// the coach is switched off in online games
+const onlineNow=()=>(VIEW==='poker'&&G&&G.online)||(VIEW==='mj'&&M&&M.online);
+const hintMode=()=>SET.coach&&!onlineNow()?SET.hint:'off';
+// level badge, or who is behind a seat in an online game
+function seatBadge(p){if(p.uid)return p.away?'<span class="lv lv-away">電腦代打</span>':'<span class="lv lv-human">真人</span>';return `<span class="lv lv-${p.level}">${LVN[p.level]}${p.style&&MJ_STYLES[p.style]&&VIEW==='mj'?` · ${MJ_STYLES[p.style].name}`:''}</span>`;}
+let TOAST_T=null;
+function toast(msg,ms){const t=$('#toast');if(!t)return;t.textContent=msg;t.hidden=false;clearTimeout(TOAST_T);TOAST_T=setTimeout(()=>{t.hidden=true;},ms||3500);}
 // only touch the DOM when a region's markup actually changed
 function setHTML(el,html){if(el.__h!==html){el.innerHTML=html;el.__h=html;return true;}return false;}
 
@@ -204,8 +210,8 @@ function render(){
     const status=turn?'思考中…':p.show&&p.score!=null?handName(p.score):p.last;
     return `<div class="${cls}">
       <div class="marks">${marks(i)}</div>
-      <div class="who"><span class="nm">${esc(p.name)}</span><span class="lv lv-${p.level}">${LVN[p.level]}</span></div>
-      ${p.style&&PK_STYLES[p.style]&&!p.human?`<div class="style">${PK_STYLES[p.style].name}</div>`:''}
+      <div class="who"><span class="nm">${esc(p.name)}</span>${seatBadge(p)}</div>
+      ${p.style&&PK_STYLES[p.style]&&!p.uid?`<div class="style">${PK_STYLES[p.style].name}</div>`:''}
       <div class="hand" style="gap:3px">${cards}</div>
       <div class="stack">${p.out?'—':fmtN(p.chips)}</div>
       ${p.bet>0?`<span class="betchip">${fmtN(p.bet)}</span>`:''}
@@ -271,7 +277,7 @@ function setRaise(v){const {min,max}=raiseBounds();v=Math.min(Math.max(Math.roun
 function segHTML(){return `<div class="seg" role="group" aria-label="教練顯示內容"><button data-h="full" aria-pressed="${SET.hint==='full'}">完整建議</button><button data-h="data" aria-pressed="${SET.hint==='data'}">只看數據</button></div>`;}
 function renderCoach(){
   const el=$('#coach'),p=G.players[0];
-  el.hidden=!SET.coach;if(!SET.coach)return;
+  el.hidden=!SET.coach||!!G.online;if(el.hidden)return;
   let body='';
   if(!p.hole.length||p.out)body='<p class="note">發牌後會顯示你的牌型與勝率。</p>';
   else{
@@ -306,6 +312,7 @@ function renderLog(){setHTML($('#log'),G.log.slice(0,60).map(l=>`<li class="${l.
 function notify(){saveGame('poker');recordFrame('poker');render();}
 function humanTurn(){
   G.hint=null;notify();
+  if(G.online)return;
   const g=GEN,hn=G.handNo,st=G.street;
   setTimeout(()=>{
     if(REPLAY.on||G.toAct!==0||G.handOver)return;
@@ -369,7 +376,7 @@ function mjSeatHTML(i){
   const win=M.phase==='end'&&M.result&&M.result.type==='win'&&M.result.wins.some(x=>x.i===i);
   const end=M.phase==='end'||(REPLAY.on&&REPLAY.reveal);
   return `<div class="mjseat ${turn?'turn':''} ${win?'win':''}">
-    <div class="ms-head"><span class="wind ${i===M.dealer?'dealer':''}" title="${WINDS[w]}家">${WINDS[w]}</span><span class="nm">${esc(p.name)}</span><span class="lv lv-${p.level}">${LVN[p.level]}${p.style&&MJ_STYLES[p.style]&&!p.human?` · ${MJ_STYLES[p.style].name}`:''}</span><span class="pos">${MJ_POS[i]}</span>${i===M.dealer?`<span class="zhuang">莊${M.streak?` 連${M.streak}`:''}</span>`:''}<span class="stack">${fmtN(p.chips)}</span></div>
+    <div class="ms-head"><span class="wind ${i===M.dealer?'dealer':''}" title="${WINDS[w]}家">${WINDS[w]}</span><span class="nm">${esc(p.name)}</span>${seatBadge(p)}<span class="pos">${MJ_POS[i]}</span>${i===M.dealer?`<span class="zhuang">莊${M.streak?` 連${M.streak}`:''}</span>`:''}<span class="stack">${fmtN(p.chips)}</span></div>
     <div class="ms-row">${end?`<span class="hand-reveal">${p.hand.map(k=>mjTileHTML(k)).join('')}</span>`:`<span class="cnt">手牌 ${p.hand.length} 張</span>`}${mjMeldsHTML(p,end)}${p.flowers.length?`<span class="flw">${p.flowers.map(f=>mjTileHTML(f)).join('')}</span>`:''}</div>
     <div class="river" aria-label="${esc(p.name)}打過的牌">${mjRiverHTML(p)}</div>
   </div>`;
@@ -392,7 +399,8 @@ function renderMj(){
   let cap='',tile='';
   if(M.phase==='end'){
     const r=M.result;
-    if(!r||r.type==='draw')cap='流局，莊家連莊';
+    if(r&&r.type==='void')cap='這一局作廢，重新發牌';
+    else if(!r||r.type==='draw')cap='流局，莊家連莊';
     else cap=r.wins.map(w=>`${M.players[w.i].name}${w.flowerWin?(w.flowerWin==='baxian'?' 八仙過海':' 七搶一'):w.self?' 自摸':' 胡牌'} · ${w.tai} 台`).join('；');
   }else if(M.phase==='claim'&&M.claim){tile=mjTileHTML(M.claim.k);cap=`${M.players[M.claim.from].name} ${M.claim.kind==='rob'?'加槓':'打出'}${M.claim.opts[0]&&!M.claim.dec[0]?'<br>你可以宣告':''}`;}
   else if(M.last){tile=mjTileHTML(M.last.k);cap=`${M.players[M.last.from].name} 打出`;}
@@ -461,7 +469,7 @@ function waitsHTML(ws){
 }
 function renderMjCoach(){
   const el=$('#mj-coach'),p=M.players[0];
-  el.hidden=!SET.coach;if(!SET.coach)return;
+  el.hidden=!SET.coach||!!M.online;if(el.hidden)return;
   const hm=SET.hint,h=M.hint;let body='';
   if(M.phase==='end'){
     const rv=M.review;
@@ -512,6 +520,7 @@ function revealHand(){
 }
 function mjHumanTurn(){
   M.hint=null;M.sel=null;mjNotify();revealHand();
+  if(M.online)return;
   const g=MGEN;
   const key=M.handNo+'|'+M.turnsTaken+'|'+M.players[0].hand.length;
   setTimeout(()=>{
@@ -521,6 +530,7 @@ function mjHumanTurn(){
 }
 function mjHumanClaim(){
   M.hint=null;mjNotify();
+  if(M.online)return;
   const g=MGEN;
   const cl=M.claim;
   setTimeout(()=>{
@@ -553,7 +563,8 @@ $('#mj-actions').addEventListener('click',e=>{
 function openMjResult(){
   const r=M.result;if(!r)return;
   let title,body='';
-  if(r.type==='draw'){title='流局';body='<p>牌牆摸到留牌處仍沒有人胡牌，莊家連莊，不用付籌碼。</p>';}
+  if(r.type==='void'){title='本局作廢';body='<p>房主連線中斷，這一局不算，籌碼沒有變動，會用同樣的莊家重新發牌。</p>';}
+  else if(r.type==='draw'){title='流局';body='<p>牌牆摸到留牌處仍沒有人胡牌，莊家連莊，不用付籌碼。</p>';}
   else{
     title=r.wins.map(w=>{const nm=M.players[w.i].name;return w.flowerWin?`${nm} ${w.flowerWin==='baxian'?'八仙過海':'七搶一'}`:w.self?`${nm} 自摸`:`${nm} 胡牌`;}).join('、');
     r.wins.forEach(w=>{

@@ -22,6 +22,12 @@ async function netInit(mode){
   }
   NET.backend=mode;NET.ready=true;
 }
+// calls cb every time the connection to the database is (re)established; returns an unsubscribe function
+function netOnConnected(cb){
+  if(NET.backend!=='firebase'){const t=setTimeout(cb,0);return ()=>clearTimeout(t);}
+  const r=NET.db.ref('.info/connected'),h=s=>{if(s.val()===true)cb();};
+  r.on('value',h);return ()=>r.off('value',h);
+}
 function ref(path){return NET.backend==='firebase'?fbRef(path):LocalDB.ref(path);}
 function fbRef(path){
   const r=NET.db.ref(path);
@@ -32,6 +38,7 @@ function fbRef(path){
     on:cb=>{const h=s=>cb(s.val());r.on('value',h);return ()=>r.off('value',h);},
     onAdd:cb=>{const h=s=>cb(s.key,s.val());r.on('child_added',h);return ()=>r.off('child_added',h);},
     claim:v=>r.transaction(cur=>cur===null?v:undefined).then(res=>res.committed),
+    swap:(expect,v)=>r.transaction(cur=>cur===expect?v:undefined).then(res=>res.committed),
     onDisconnectRemove:()=>r.onDisconnect().remove(),
     onDisconnectSet:v=>r.onDisconnect().set(v),
     cancelDisconnect:()=>r.onDisconnect().cancel()
@@ -69,6 +76,7 @@ const LocalDB={
       on:cb=>{let last;const f=()=>{const v=S.read(path),s=JSON.stringify(v);if(s!==last){last=s;cb(v);}};S.subs.push(f);setTimeout(f,0);return ()=>{S.subs=S.subs.filter(x=>x!==f);};},
       onAdd:cb=>{const seen=new Set();const f=()=>{const v=S.read(path)||{};Object.keys(v).sort().forEach(k=>{if(!seen.has(k)){seen.add(k);cb(k,v[k]);}});};S.subs.push(f);setTimeout(f,0);return ()=>{S.subs=S.subs.filter(x=>x!==f);};},
       claim:v=>{if(S.read(path)!=null)return Promise.resolve(false);S.write(path,v);return Promise.resolve(true);},
+      swap:(expect,v)=>{if(S.read(path)!==expect)return Promise.resolve(false);S.write(path,v);return Promise.resolve(true);},
       onDisconnectRemove:()=>{S.dis.push([path,null]);return Promise.resolve();},
       onDisconnectSet:v=>{S.dis.push([path,v]);return Promise.resolve();},
       cancelDisconnect:()=>{S.dis=S.dis.filter(d=>d[0]!==path);return Promise.resolve();}

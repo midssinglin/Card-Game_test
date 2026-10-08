@@ -145,7 +145,7 @@ const SPEED={slow:1300,mid:800,fast:420};
 const PK_STYLES={balanced:{name:'平衡',loose:0,aggr:1,bluff:1,sticky:0},tag:{name:'緊兇',loose:-.08,aggr:1.35,bluff:1.1,sticky:-.03},
   lag:{name:'鬆兇',loose:.12,aggr:1.45,bluff:1.8,sticky:.03},station:{name:'跟注站',loose:.15,aggr:.5,bluff:.3,sticky:.15},rock:{name:'保守',loose:-.12,aggr:.7,bluff:.3,sticky:-.06}};
 function pickStyle(v,table){const ks=Object.keys(table);return table[v]?v:ks[Math.floor(Math.random()*ks.length)];}
-const cfg={get opps(){return SET.poker.opps},get levels(){return SET.poker.levels},get chips(){return SET.poker.chips},get speed(){return SET.speed},get blindUp(){return SET.poker.blindUp},get styles(){return SET.poker.styles},get hint(){return SET.coach?SET.hint:'off'}};
+const cfg={get opps(){return SET.poker.opps},get levels(){return SET.poker.levels},get chips(){return SET.poker.chips},get speed(){return SET.speed},get blindUp(){return SET.poker.blindUp},get styles(){return SET.poker.styles},get hint(){return SET.coach&&!(G&&G.online)?SET.hint:'off'}};
 let G=null,GEN=0;
 
 const fmtN=n=>Number(n).toLocaleString('en-US');

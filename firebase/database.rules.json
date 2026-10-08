@@ -3,7 +3,9 @@
     "lobby": {
       "$game": {
         ".read": "auth != null",
-        "$rid": { ".write": "auth != null" }
+        "$rid": {
+          ".write": "auth != null"
+        }
       }
     },
     "codes": {
@@ -18,7 +20,10 @@
         "meta": {
           ".read": "auth != null",
           ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)",
-          ".validate": "newData.hasChildren(['game','code','host','status','max']) || !newData.exists() || data.exists()"
+          ".validate": "newData.hasChildren(['game','code','host','status','max']) || !newData.exists() || data.exists()",
+          "host": {
+            ".write": "auth != null && data.exists() && newData.val() === auth.uid && !root.child('rooms').child($rid).child('presence').child(data.val()).exists() && root.child('rooms').child($rid).child('members').child(auth.uid).exists()"
+          }
         },
         "seats": {
           ".read": "auth != null",
@@ -28,7 +33,9 @@
         },
         "presence": {
           ".read": "auth != null",
-          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         },
         "state": {
           "public": {
@@ -46,6 +53,18 @@
           ".read": "root.child('rooms').child($rid).child('meta/host').val() === auth.uid",
           "$msg": {
             ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && root.child('rooms').child($rid).child('meta/host').val() === auth.uid))"
+          }
+        },
+        "members": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && ((auth.uid === $uid && root.child('rooms').child($rid).child('meta/status').val() === 'waiting') || root.child('rooms').child($rid).child('meta/host').val() === auth.uid)"
+          }
+        },
+        "keys": {
+          ".read": "root.child('rooms').child($rid).child('meta/host').val() === auth.uid",
+          "$seat": {
+            ".write": "auth != null && !data.exists() && root.child('rooms').child($rid).child('seats').child($seat).child('uid').val() === auth.uid"
           }
         }
       }

@@ -36,6 +36,7 @@ function boot(){
   syncCoachBtn();
   go(location.hash==='#learn'?'learn':'home');
   window.addEventListener('pagehide',()=>{saveGame('poker');saveGame('mj');});
+  if(typeof onlineResume==='function')onlineResume();
   document.addEventListener('visibilitychange',()=>{if(document.hidden){saveGame('poker');saveGame('mj');}});
 }
 // SAVE END
