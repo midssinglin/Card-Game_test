@@ -17,6 +17,10 @@ jobs:
       - name: Build
         run: python3 build.py
       - name: Check docs/ is up to date
-        run: git diff --exit-code -- docs/index.html || (echo "docs/ is out of date: run python3 build.py and commit" && exit 1)
+        run: |
+          if ! git diff --exit-code -- docs/index.html; then
+            echo "docs/ is out of date. Run python3 build.py and commit the result."
+            exit 1
+          fi
       - name: Tests
         run: npm test
