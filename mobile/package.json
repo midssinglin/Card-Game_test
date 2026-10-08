@@ -1,0 +1,20 @@
+{
+  "name": "paizhuo-xuetang-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "牌桌學堂 Android / iOS 包裝（Capacitor）",
+  "scripts": {
+    "copy-web": "node copy-web.js",
+    "sync": "npm run copy-web && npx cap sync",
+    "android": "npm run sync && npx cap open android",
+    "ios": "npm run sync && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

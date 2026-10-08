@@ -1,0 +1,11 @@
+{
+  "name": "card-game-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "牌桌學堂：德州撲克與台灣16張麻將練牌室（單機對電腦、教練提示、線上對戰）",
+  "scripts": {
+    "build": "python3 build.py",
+    "test": "node tests/engine_test.js && node tests/quiz_check.js && node tests/daily_check.js",
+    "serve": "python3 -m http.server 8000 --directory docs"
+  }
+}

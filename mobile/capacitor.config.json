@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.midssinglin.paizhuo",
+  "appName": "牌桌學堂",
+  "webDir": "www",
+  "backgroundColor": "#0b1113",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}

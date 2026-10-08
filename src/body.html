@@ -1,0 +1,143 @@
+<div class="app">
+  <header class="top">
+    <h1 class="brand"><button data-go="home">牌桌學堂</button></h1>
+    <nav class="tabs" role="tablist" aria-label="切換畫面">
+      <button class="tab" role="tab" data-go="home">首頁</button>
+      <button class="tab" role="tab" data-go="learn">教學</button>
+      <button class="tab" role="tab" data-go="poker">德州撲克</button>
+      <button class="tab" role="tab" data-go="mj">台灣麻將</button>
+      <button class="tab" role="tab" data-go="online" id="tab-online">線上</button>
+    </nav>
+    <div class="meta" id="meta"></div>
+    <div class="tools">
+      <button class="ghost" id="btn-leave" data-on="leave" hidden>離開房間</button>
+      <button class="ghost" id="btn-rules" hidden>規則</button>
+      <button class="ghost" id="btn-coach" aria-pressed="true">教練 開</button>
+    </div>
+  </header>
+
+  <main id="view-home" class="home">
+    <div class="hero-home">
+      <p class="eyebrow">練牌室 · 免費籌碼</p>
+      <h2 class="display">牌桌學堂</h2>
+      <p class="lede">和三種難度的電腦對戰，教練在旁邊幫你算勝率、聽牌與台數。籌碼不用錢，每一場結束後都會重置。</p>
+    </div>
+    <div class="games" id="games"></div>
+    <div class="home-panels">
+      <section class="panel" id="learn-card" aria-label="新手教學"></section>
+      <section class="panel" id="daily-card" aria-label="今日練習"></section>
+      <section class="panel" id="stats-card" aria-label="我的統計"></section>
+    </div>
+    <section class="panel settings" aria-labelledby="set-h">
+      <div class="ph"><h2 id="set-h">系統設定</h2></div>
+      <p class="note">各地家規不一樣，有爭議的規則都能在這裡改。預設值是常見的台灣打法；設定只存在這台裝置上，進行中的牌局會在下一場套用新設定。</p>
+      <div id="set-body" class="set-sec"></div>
+    </section>
+  </main>
+
+  <main id="view-learn" class="learnv" hidden><div id="learn-root"></div></main>
+  <main id="view-stats" class="learnv statsv" hidden><div id="stats-root" class="learnv"></div></main>
+
+  <main id="view-online" class="learnv" hidden><div id="online-root" class="learnv"></div></main>
+
+  <main id="view-poker" class="layout" hidden>
+    <section class="tablecol" aria-label="德州撲克牌桌">
+      <div class="felt">
+        <div class="opps" id="opps"></div>
+        <div class="center">
+          <div class="street" id="street"></div>
+          <div class="pot" id="pot"></div>
+          <div class="board" id="board"></div>
+          <div class="msg" id="msg" aria-live="polite"></div>
+        </div>
+        <div class="hero" id="hero"></div>
+      </div>
+      <div class="actions" id="actions"></div>
+    </section>
+    <aside class="side">
+      <section class="panel coach" id="coach" aria-label="教練"></section>
+      <section class="panel log">
+        <div class="ph"><h2>牌局紀錄</h2></div>
+        <ol id="log"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <main id="view-mj" class="layout" hidden>
+    <section class="tablecol" aria-label="台灣麻將牌桌">
+      <div class="felt mjfelt">
+        <div class="mj-opps" id="mj-opps"></div>
+        <div class="mj-center" id="mj-center" aria-live="polite"></div>
+        <div class="mj-me" id="mj-me"></div>
+      </div>
+      <div class="actions" id="mj-actions"></div>
+    </section>
+    <aside class="side">
+      <section class="panel coach" id="mj-coach" aria-label="教練"></section>
+      <section class="panel log">
+        <div class="ph"><h2>牌局紀錄</h2></div>
+        <ol id="mj-log"></ol>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<div class="overlay" id="ov-rules" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="rules-h">
+    <h2 id="rules-h">牌型表（由大到小）</h2>
+    <p class="note">從你的 2 張底牌與 5 張公牌中，挑出最好的 5 張比大小。</p>
+    <div class="ranks" id="ranks"></div>
+    <h2>常用詞</h2>
+    <dl class="gloss">
+      <dt>按鈕位 D</dt><dd>本手的莊位，每手往左移一位；翻牌後最後行動，資訊最多。</dd>
+      <dt>小盲／大盲</dt><dd>按鈕左邊兩家強制下注，讓每手都有底池可爭。</dd>
+      <dt>跟注所需勝率</dt><dd>跟注額 ÷（底池＋跟注額）。你的勝率高於它，長期跟注就有賺。</dd>
+      <dt>改良張</dt><dd>下一張出現就能讓你牌型升級的牌，例如同花聽牌通常有 9 張。</dd>
+      <dt>4 與 2 法則</dt><dd>翻牌時改良張 × 4 ≈ 到河牌中牌的百分比；轉牌時 × 2。</dd>
+      <dt>邊池</dt><dd>有人全下後，其他人繼續下注的部分另成一池，全下的人無法贏走。</dd>
+    </dl>
+    <div class="arow"><button class="btn" data-close="ov-rules">關閉</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-mjrules" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="mjr-h">
+    <h2 id="mjr-h">台灣16張麻將</h2>
+    <div id="mjr-body" class="set-sec"></div>
+    <div class="arow"><button class="btn" data-close="ov-mjrules">關閉</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-mjres" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="mjres-h">
+    <h2 id="mjres-h"></h2>
+    <div id="mjres-body" class="set-sec"></div>
+    <div class="arow"><button class="btn" data-replay="mj">重播這局</button><button class="btn primary" id="mjres-next"></button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-about" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="about-h">
+    <h2 id="about-h">隱私與聲明</h2>
+    <h3 class="sub-h">虛擬籌碼</h3>
+    <p>遊戲中的籌碼只是計分用的虛擬點數：免費取得、每場結束重置，沒有現金價值，也無法購買、兌換、轉讓或提領。遊戲不提供任何真錢下注或獎品。</p>
+    <h3 class="sub-h">資料存放</h3>
+    <p>設定、牌局存檔、教學進度與統計都只存在你這台裝置的瀏覽器裡，不會上傳。清除瀏覽器資料就會一併清除。</p>
+    <h3 class="sub-h">線上對戰</h3>
+    <p>使用線上對戰時，會透過 Google Firebase 傳送你自訂的暱稱、匿名登入編號與牌局內容，用來和其他玩家同步。房間結束後牌局資料會刪除，我們不蒐集姓名、電子郵件或位置。</p>
+    <h3 class="sub-h">適合年齡</h3>
+    <p>本遊戲含有模擬博弈的玩法（撲克、麻將），建議 18 歲以上使用。</p>
+    <div class="arow"><button class="btn" data-close="ov-about">關閉</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-over" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="over-h">
+    <h2 id="over-h"></h2>
+    <div id="over-body"></div>
+    <div class="arow">
+      <button class="btn" id="over-setup">調整設定</button>
+      <button class="btn primary" id="over-again">再來一場</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,54 @@
+{
+  "rules": {
+    "lobby": {
+      "$game": {
+        ".read": "auth != null",
+        "$rid": { ".write": "auth != null" }
+      }
+    },
+    "codes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || root.child('rooms').child(data.val()).child('meta/host').val() === auth.uid || !root.child('rooms').child(data.val()).exists())"
+      }
+    },
+    "rooms": {
+      "$rid": {
+        ".write": "auth != null && data.exists() && data.child('meta/host').val() === auth.uid",
+        "meta": {
+          ".read": "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['game','code','host','status','max']) || !newData.exists() || data.exists()"
+        },
+        "seats": {
+          ".read": "auth != null",
+          "$seat": {
+            ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || data.child('uid').val() === auth.uid || root.child('rooms').child($rid).child('meta/host').val() === auth.uid)"
+          }
+        },
+        "presence": {
+          ".read": "auth != null",
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        },
+        "state": {
+          "public": {
+            ".read": "auth != null",
+            ".write": "root.child('rooms').child($rid).child('meta/host').val() === auth.uid"
+          },
+          "priv": {
+            "$uid": {
+              ".read": "auth != null && auth.uid === $uid",
+              ".write": "root.child('rooms').child($rid).child('meta/host').val() === auth.uid"
+            }
+          }
+        },
+        "inbox": {
+          ".read": "root.child('rooms').child($rid).child('meta/host').val() === auth.uid",
+          "$msg": {
+            ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && root.child('rooms').child($rid).child('meta/host').val() === auth.uid))"
+          }
+        }
+      }
+    }
+  }
+}
