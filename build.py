@@ -13,7 +13,7 @@ def wr(p,s):
     full=os.path.join(R,p); os.makedirs(os.path.dirname(full),exist_ok=True)
     open(full,'w',encoding='utf-8').write(s)
 CSS=['src/base.css','src/extra.css']
-JS=['src/poker_core.js','src/mj.js','src/ui.js','src/learn.js','src/stats.js','src/replay.js','src/worker.js','src/net.js','src/online.js','src/save.js']
+JS=['src/poker_core.js','src/mj.js','src/explain.js','src/ui.js','src/learn.js','src/stats.js','src/replay.js','src/worker.js','src/net.js','src/online.js','src/save.js']
 FONTS='''<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,600;6..96,700&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
@@ -22,7 +22,7 @@ FIREBASE_VER='10.12.2'
 def scripts():
     return '\n'.join(rd(j) for j in JS if os.path.exists(os.path.join(R,j)))
 def engine_src():
-    eng=rd('src/poker_core.js')+'\n'+rd('src/mj.js')
+    eng=rd('src/poker_core.js')+'\n'+rd('src/mj.js')+'\n'+rd('src/explain.js')
     assert '</script' not in eng
     return '<script type="text/plain" id="engine-src">'+eng+'</script>\n'
 def body(target):

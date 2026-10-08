@@ -14,6 +14,15 @@ const onlineNow=()=>(VIEW==='poker'&&G&&G.online)||(VIEW==='mj'&&M&&M.online);
 const hintMode=()=>SET.coach&&!onlineNow()?SET.hint:'off';
 // level badge, or who is behind a seat in an online game
 function seatBadge(p){if(p.uid)return p.away?'<span class="lv lv-away">電腦代打</span>':'<span class="lv lv-human">真人</span>';return `<span class="lv lv-${p.level}">${LVN[p.level]}${p.style&&MJ_STYLES[p.style]&&VIEW==='mj'?` · ${MJ_STYLES[p.style].name}`:''}</span>`;}
+// detailed coach explanation: motive, reasoning, risks, alternatives
+let XOPEN=true;try{XOPEN=localStorage.getItem('ptx-explain-open')!=='0';}catch(_){}
+document.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('explain')){XOPEN=e.target.open;try{localStorage.setItem('ptx-explain-open',XOPEN?'1':'0');}catch(_){}}},true);
+function explainHTML(ex,mode){
+  if(!ex)return '';
+  const full=mode==='full';
+  const sec=(t,arr,cls)=>arr&&arr.length?`<div class="xsec ${cls}"><h4>${t}</h4><ul>${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:'';
+  return `<details class="explain" ${XOPEN?'open':''}><summary>${full?'為什麼？看詳細分析':'詳細分析'}</summary>${full?sec('為什麼這樣打',ex.why,'why'):''}${sec('怎麼想的',ex.logic,'logic')}${sec('要注意的風險',ex.risk,'risk')}${full?sec('其他選擇',ex.alt,'alt'):''}</details>`;
+}
 let TOAST_T=null;
 function toast(msg,ms){const t=$('#toast');if(!t)return;t.textContent=msg;t.hidden=false;clearTimeout(TOAST_T);TOAST_T=setTimeout(()=>{t.hidden=true;},ms||3500);}
 // only touch the DOM when a region's markup actually changed
@@ -297,8 +306,9 @@ function renderCoach(){
         <div class="metric"><span class="k">跟注所需</span><span class="v">${h.toCall?pc(h.req):'—'}</span><span class="sub">${h.toCall?`跟 ${fmtN(h.toCall)} 搶 ${fmtN(h.pot+h.toCall)}`:'不用跟注，可免費過牌'}</span></div></div>`;
       if(SET.hint==='full'){
         const nm={fold:'建議 棄牌',check:'建議 過牌',call:h.marginal?'可跟可棄':'建議 跟注',raise:h.toCall?'建議 加注':'建議 下注'}[h.act];
-        body+=`<div class="advice tone-${h.tone}"><span class="tag">${nm}</span><p>${esc(h.reason)}</p></div>`;
+        body+=`<div class="advice tone-${h.tone}"><span class="tag">${nm}</span><p>${esc(h.ex?h.ex.summary:h.reason)}</p></div>`;
       }
+      body+=explainHTML(h.ex,SET.hint);
       if(h.outs){
         const o=h.outs,parts=Object.keys(o.by).sort((a,b)=>b-a).map(c=>`${CAT[c]} ${o.by[c]} 張`).join('、');
         body+=o.total?`<p class="outs"><span class="k">改良張</span> ${o.total} 張（${parts}）。下一張中的機率 ${pc(o.next)}${G.board.length===3?`，到河牌 ${pc(o.river)}（4 與 2 法則估 ${Math.min(100,o.total*4)}%）`:`（4 與 2 法則估 ${o.total*2}%）`}。</p>`:'<p class="outs"><span class="k">改良張</span> 目前沒有能明顯升級牌型的牌。</p>';
@@ -411,7 +421,7 @@ function renderMj(){
   const me=$('#mj-me');me.className=`mj-me ${myTurn?'turn':''} ${win?'win':''}`;
   const hm=hintMode(),hint=M.hint;
   const sugK=hm==='full'&&myTurn&&hint&&hint.kind==='turn'&&!hint.o.win&&hint.an[0]?hint.an[0].k:null;
-  const dm=hm==='full'&&myTurn&&hint&&hint.kind==='turn'&&hint.dm.maxT>=.5?hint.dm.map:null;
+  const dm=hm==='full'&&myTurn&&hint&&hint.kind==='turn'&&hint.dm.maxT>=.4?hint.dm.map:null;
   const {h,drawn}=mjDisplayHand();
   let sugDone=false,selDone=false;
   const handHTML=h.map((k,ix)=>{
@@ -419,7 +429,7 @@ function renderMj(){
     if(drawn!=null&&ix===h.length-1)cls.push('drawn');
     if(M.sel===k&&!selDone){cls.push('sel');selDone=true;}
     if(sugK===k&&!sugDone&&M.sel!==k){cls.push('sug');sugDone=true;}
-    if(dm){if(dm[k]>=.75)cls.push('dz-hi');else if(dm[k]===0)cls.push('dz-safe');}
+    if(dm){if(dm[k]>=.04)cls.push('dz-hi');else if(dm[k]<.005)cls.push('dz-safe');}
     return mjTileHTML(k,cls.join(' '),'button',`data-k="${k}" ${myTurn?'':'disabled'} type="button"`);
   }).join('');
   if(me.children.length!==4)me.innerHTML='<div class="ms-head"></div><div class="river" aria-label="你打過的牌"></div><div class="me-melds"></div><div class="handwrap"><div class="mj-hand" role="group" aria-label="你的手牌"></div></div>';
@@ -477,23 +487,28 @@ function renderMjCoach(){
   }else if(M.phase==='turn'&&M.turn===0){
     if(!h||h.kind!=='turn')body=REPLAY.on?'<p class="note">這一步沒有教練分析。</p>':'<p class="note dots">分析手牌中</p>';
     else{
-      if(h.o.win)body+=`<div class="advice tone-good"><span class="tag">可以自摸</span><p>這張讓你胡牌，預估 ${h.winTai} 台${M.R.tai.dealer?'（不含莊家台）':''}。</p></div>`;
+      if(h.o.win)body+=`<div class="advice tone-good"><span class="tag">可以自摸</span><p>這張讓你胡牌，預估 ${h.winTai} 台${M.R.tai.dealer?'（不含莊家台）':''}。</p></div>${explainHTML(h.ex,hm)}`;
       const top=h.an[0];
       body+=`<div class="handline"><span class="k">目前</span><span class="big-s">${sName(top.s)}</span></div>`;
       const rows=h.an.slice(0,3).map((a,ix)=>`<div class="ana-row">${mjTileHTML(a.k)}<span class="t">打${tName(a.k)}後 ${sName(a.s)}<small>有效進張 ${a.kinds.length} 種 ${a.uk} 張</small></span>${ix===0&&hm==='full'?'<span class="tag">建議</span>':'<span></span>'}</div>`).join('');
       body+=`<div class="ana">${rows}</div>`;
       if(h.waits&&h.waits.length)body+=`<p class="outs"><span class="k">打${tName(top.k)}後聽：</span></p>${waitsHTML(h.waits)}`;
       h.anKong.forEach(a=>{body+=`<p class="outs"><span class="k">暗槓 ${tName(a.k)}</span>：槓後 ${sName(a.s)}，還能從牌尾補一張。</p>`;});
-      if(h.dm.threats.length&&hm==='full')body+=`<div class="advice tone-warn"><span class="tag">注意防守</span><p>${h.dm.threats.map(q=>esc(q.name)).join('、')} 可能快聽牌了。底下有紅線的牌比較危險，有綠點的是對方打過的安全牌。</p></div>`;
-      else if(h.dm.threats.length)body+=`<p class="note">${h.dm.threats.map(q=>esc(q.name)).join('、')} 吃碰較多，可能快聽牌。</p>`;
+      if(!h.o.win){
+        if(hm==='full'&&h.ex)body+=`<div class="advice tone-good"><span class="tag">建議 打${tName(top.k)}</span><p>${esc(h.ex.head||h.ex.summary)}</p></div>`;
+        const th=(h.dm.opps||[]).filter(o=>o.ready>=.4).sort((a,b)=>b.ready-a.ready);
+        if(th.length)body+=`<div class="advice tone-warn"><span class="tag">注意防守</span><p>${th.map(o=>`${esc(o.q.name)}（約 ${Math.round(o.ready*100)}% 已聽牌）`).join('、')}。${hm==='full'?'手牌下緣有紅線的牌放槍機率較高，有綠點的幾乎安全。':''}</p></div>`;
+        body+=explainHTML(h.ex,hm);
+      }
     }
   }else if(M.phase==='claim'&&M.claim&&M.claim.opts[0]&&!M.claim.dec[0]){
     if(!h||h.kind!=='claim')body=REPLAY.on?'<p class="note">這一步沒有教練分析。</p>':'<p class="note dots">分析中</p>';
-    else if(h.rec==='win'||h.tai!=null)body=`<div class="advice tone-good"><span class="tag">可以胡牌</span><p>胡這張預估 ${h.tai} 台${M.R.tai.dealer?'（不含莊家台）':''}。</p></div>`;
+    else if(h.rec==='win'||h.tai!=null)body=`<div class="advice tone-good"><span class="tag">可以胡牌</span><p>胡這張預估 ${h.tai} 台${M.R.tai.dealer?'（不含莊家台）':''}。</p></div>${explainHTML(h.ex,hm)}`;
     else{
       const nm={pass:'建議 過',pong:'建議 碰',kong:'建議 槓',chow:'建議 吃'}[h.rec];
-      body+=`<div class="handline"><span class="k">現在</span><span class="big-s">${sName(h.e.s0)}</span></div><ul class="steps">${h.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`;
-      if(hm==='full')body+=`<div class="advice tone-${h.rec==='pass'?'neutral':'good'}"><span class="tag">${nm}</span><p>${h.rec==='pass'?'吃碰之後沒有比較接近胡牌，留著門清機會比較好。':'這樣做能讓你更接近聽牌。'}</p></div>`;
+      body+=`<div class="handline"><span class="k">現在</span><span class="big-s">${sName(h.e.s0)}</span></div>`;
+      if(hm==='full')body+=`<div class="advice tone-${h.rec==='pass'?'neutral':'good'}"><span class="tag">${nm}</span><p>${esc(h.ex?h.ex.summary:(h.rec==='pass'?'吃碰之後沒有比較接近胡牌，留著門清機會比較好。':'這樣做能讓你更接近聽牌。'))}</p></div>`;
+      body+=h.ex?explainHTML(h.ex,hm):`<ul class="steps">${h.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`;
     }
   }else{
     // between turns: show whether you are ready, and what you wait on

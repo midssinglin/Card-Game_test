@@ -242,3 +242,13 @@
 /* connection notices, online seat badges */
 .toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:30;max-width:min(92vw,520px);background:var(--panel-2);color:var(--text);border:1px solid var(--brass-dim);border-radius:12px;padding:10px 16px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.45);text-align:center}
 .lv-human{color:var(--good)}.lv-away{color:var(--muted)}
+
+/* coach explanations */
+.explain{border:1px solid var(--line);border-radius:12px;background:var(--panel-2);padding:0 12px}
+.explain summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--brass);font-weight:700;list-style-position:inside}
+.explain[open] summary{border-bottom:1px solid var(--line);margin-bottom:6px}
+.xsec{padding:4px 0 8px}
+.xsec h4{margin:4px 0 4px;font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.xsec ul{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:5px}
+.xsec li{font-size:13.5px;line-height:1.6;color:var(--text)}
+.xsec.why h4{color:var(--good)}.xsec.risk h4{color:var(--warn)}.xsec.alt h4{color:var(--lv-easy)}

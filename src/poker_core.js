@@ -397,6 +397,7 @@ function computeHint(){
   else if(eq>=req-.05){act='call';tone='warn';reason=`勝率 ${pc(eq)} 略低於所需的 ${pc(req)}，是邊緣決定，棄牌也合理。`;}
   else{act='fold';tone='bad';reason=`勝率 ${pc(eq)} 低於跟注所需的 ${pc(req)}，這樣跟注長期會虧。`;}
   G.hint={eq,req,opp,toCall,pot,act,reason,tone,size,marginal:tone==='warn',outs:outsInfo(p.hole,G.board),street:G.street};
+  if(typeof pkExplain==='function')try{G.hint.ex=pkExplain(G.hint);}catch(_){G.hint.ex=null;}
 }
 
 function humanAct(type,to){

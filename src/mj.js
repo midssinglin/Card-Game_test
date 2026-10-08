@@ -318,7 +318,7 @@ function mjFinishJia(i,k){
 function mjDiscard(i,k){
   const p=M.players[i];
   mjRemove(p.hand,k);mjSort(p.hand);
-  p.river.push({k,claimed:false});typeof sfx==='function'&&sfx('tile');
+  p.river.push({k,claimed:false,ts:M.justDrawn===k});typeof sfx==='function'&&sfx('tile');
   M.turnsOf[i]++;M.turnsTaken++;M.last={k,from:i};M.drawn=null;M.justDrawn=null;M.afterKong=false;M.sel=null;
   mlog(`${p.name} 打出 ${tName(k)}`);
   const opts={};
@@ -492,6 +492,64 @@ function mjDanger(k,q,vis){
   if(vis[k]>=3)return .25;
   const v=k%9;return v===0||v===8?.55:v===1||v===7?.8:1;
 }
+// tuning for the hard AI's attack/defence balance (chosen by tests/mj_strength.js)
+var MJ_TUNE={k0:3,k1:8,k2:15,kFold:150,foldReady:.7,guardPt:2};
+// calibration measured with tests/mj_calibration.js: raw readiness score -> real chance the player is ready,
+// danger score -> real chance the tile is a winning tile for a ready player
+const mjReadyProb=pt=>Math.max(0,Math.min(.95,.95*pt-.12));
+const mjWinTileProb=d=>.006+.105*d;
+// ---------- tile reading: how close each opponent is to ready, and how dangerous each tile is against them
+function mjReadOpp(i,q,vis){
+  const ex=q.melds.filter(m=>!m.concealed),riv=q.river,d=riv.length;
+  let pt=d<5?.03:d<8?.1:d<11?.22:d<14?.35:.48;
+  pt+=ex.length*.12;
+  const left=Math.max(0,M.wall.length-M.R.reserve);
+  if(left<20)pt+=.1;
+  const recent=riv.slice(-4);
+  const still=d>=8&&recent.length>=3&&recent.filter(r=>r.ts).length>=3;
+  if(still)pt+=.12;
+  const lateMid=d>=9&&riv.slice(-3).some(r=>!r.ts&&r.k<27&&r.k%9>=2&&r.k%9<=6);
+  if(lateMid)pt+=.08;
+  pt=Math.min(.95,pt);
+  const meldSuits=new Set(ex.filter(m=>m.k<27).map(m=>(m.k/9)|0));
+  let flush=-1;
+  if(ex.length>=2&&meldSuits.size===1)flush=[...meldSuits][0];
+  const discSuit=[0,0,0];riv.forEach(r=>{if(r.k<27)discSuit[(r.k/9)|0]++;});
+  const discTotal=discSuit[0]+discSuit[1]+discSuit[2];
+  let avoided=-1;
+  if(flush<0&&d>=8&&discTotal>=6)for(let s2=0;s2<3;s2++)if(discSuit[s2]===0){avoided=s2;flush=s2;}
+  const inRiver=new Set(riv.map(r=>r.k));
+  const danger=new Array(34).fill(0);
+  for(let k=0;k<34;k++){
+    if(4-vis[k]<=0)continue;
+    let w;
+    if(inRiver.has(k))w=.08;
+    else if(k>=27){w=vis[k]>=3?.06:vis[k]>=2?.3:.55;if(flush>=0)w*=1.2;}
+    else{
+      const n=k%9,su=(k/9)|0,base=su*9;
+      w=(n===0||n===8)?.55:(n===1||n===7)?.8:1;
+      const sides=[];if(n>=3)sides.push(inRiver.has(k-3));if(n<=5)sides.push(inRiver.has(k+3));
+      const safe=sides.filter(Boolean).length;
+      if(sides.length&&safe===sides.length)w*=.4;else if(safe)w*=.7;
+      const nb=x=>x>=base&&x<base+9?vis[x]:4;
+      if(nb(k-1)>=4&&nb(k+1)>=4)w*=.35;else if(nb(k-1)>=4||nb(k+1)>=4)w*=.75;
+      if(vis[k]>=3)w*=.4;
+      if(flush>=0)w*=su===flush?1.5:.35;
+    }
+    danger[k]=Math.min(1,w);
+  }
+  return {q,pt,danger,flush,avoided,ex:ex.length,d,still,inRiver};
+}
+function mjRead(i){
+  const vis=mjVisible(i);
+  const opps=M.players.filter(q=>q.id!==i).map(q=>mjReadOpp(i,q,vis));
+  const map={};let maxT=0;
+  opps.forEach(o=>{o.ready=mjReadyProb(o.pt);});
+  // map[k] = estimated chance that discarding k deals in to someone
+  for(let k=0;k<34;k++){let s2=0;opps.forEach(o=>{s2=1-(1-s2)*(1-o.ready*(o.danger[k]>0?mjWinTileProb(o.danger[k]):0));});map[k]=s2;}
+  opps.forEach(o=>{maxT=Math.max(maxT,o.ready);});
+  return {map,maxT,threats:opps.filter(o=>o.ready>=.4).map(o=>o.q),opps,calibrated:true};
+}
 function mjDangerMap(i){
   const vis=mjVisible(i),out={};let maxT=0;
   const qs=M.players.filter(q=>q.id!==i).map(q=>({q,t:mjThreat(q)}));
@@ -510,13 +568,18 @@ function mjAiDiscard(p){
   }
   const st=MJ_STYLES[p.style]||MJ_STYLES.balanced;
   if(lv==='normal'&&p.style==='balanced')return an[0].k;
-  // hard: efficiency + defence + leaning toward one suit
-  const dm=mjDangerMap(p.id),s0=an[0].s;
+  // hard: efficiency + tile reading (attack or defend) + leaning toward one suit
+  const reading=lv==='hard'&&!p.readOff;
+  const dm=reading?mjRead(p.id):mjDangerMap(p.id),s0=an[0].s;
   const all=p.hand.concat(...p.melds.map(m=>m.t==='chow'?[m.k,m.k+1,m.k+2]:[m.k,m.k,m.k]));
   const sc=[0,0,0];all.forEach(k=>{if(k<27)sc[(k/9)|0]++;});
   const hon=all.filter(k=>k>=27).length,dom=sc.indexOf(Math.max(...sc));
   const leaning=sc[dom]+hon>=all.length-3&&p.melds.every(m=>m.k>=27||((m.k/9)|0)===dom);
-  const W=(dm.maxT>=.9?(s0>=2?8:s0===1?3:1):0)*st.defend*(lv==='normal'?.6:1);
+  let W=(dm.maxT>=.9?(s0>=2?8:s0===1?3:1):0)*st.defend*(lv==='normal'?.6:1);
+  if(reading){
+    const T=MJ_TUNE,fold=s0>=2&&dm.maxT>=T.foldReady;
+    W=(fold?T.kFold:s0===0?T.k0:s0===1?T.k1:T.k2)*st.defend;
+  }
   const c=mjCounts(p.hand);
   let best=null;
   for(const a of an){
@@ -560,7 +623,9 @@ function mjAiClaim(j,o,k){
   const e=mjClaimEval(j,o,k);
   if(o.kong&&(lv==='easy'||e.kong<=e.s0))return {type:'kong'};
   const st=MJ_STYLES[p.style]||MJ_STYLES.balanced;
-  const guard=(lv==='hard'&&e.menq&&e.s0===0)||(st.call<0&&e.menq&&e.s0<=2);
+  let guard=(lv==='hard'&&e.menq&&e.s0===0)||(st.call<0&&e.menq&&e.s0<=2);
+  // hard: far from ready while someone looks ready -> keep the hand closed so it can defend
+  if(lv==='hard'&&!p.readOff&&e.s0>=2&&!e.value&&mjRead(j).maxT>=MJ_TUNE.guardPt)guard=true;
   if(o.pong){
     if(lv==='easy'){if(R<.75)return {type:'pong'};}
     else if(e.value&&e.pong<=e.s0)return {type:'pong'};
@@ -591,18 +656,19 @@ function mjComputeHint(){
   const p=M.players[0];
   if(M.phase==='turn'&&M.turn===0){
     const o=mjTurnOptions(0),an=mjAnalysis(0);
-    const h={kind:'turn',o,an,cur:an.length?an[0].s:0,dm:mjDangerMap(0)};
+    const h={kind:'turn',o,an,cur:an.length?an[0].s:0,dm:mjRead(0)};
     if(o.win){h.winTai=mjScore({hand:p.hand.slice(),melds:p.melds,flowers:p.flowers,win:M.drawn,self:true,seat:seatWind(0),round:M.roundWind,last:M.wall.length<=M.R.reserve,gangkai:M.afterKong,rob:false,special:null},M.R).tai;}
     const top=an[0];
     if(top&&top.s===0){const rest=p.hand.slice();rest.splice(rest.indexOf(top.k),1);h.waits=mjWaitInfo(0,rest);}
     h.anKong=o.an.map(k=>{const c=mjCounts(p.hand),N=5-p.melds.length;c[k]-=4;return {k,s:mjShanten(c,N-1)};});
+    if(typeof mjExplainTurn==='function')try{h.ex=mjExplainTurn(h,p);}catch(_){h.ex=null;}
     M.hint=h;return;
   }
   if(M.phase==='claim'&&M.claim&&M.claim.opts[0]){
     const C=M.claim,o=C.opts[0],k=C.k;
     if(o.win){
       const w={i:0,win:k,self:false,last:M.wall.length<=M.R.reserve,gangkai:false,rob:C.kind==='rob',special:null};
-      M.hint={kind:'claim',rec:'win',tai:mjScoreFor(0,w).tai,reason:'可以胡牌！'};return;
+      const tai=mjScoreFor(0,w).tai;M.hint={kind:'claim',rec:'win',tai,reason:'可以胡牌！',ex:typeof mjExplainRon==='function'?mjExplainRon(tai):null};return;
     }
     const e=mjClaimEval(0,o,k),pass=mjAiClaim(0,o,k);
     const r={kind:'claim',e,rec:pass.type,start:pass.start};
@@ -612,7 +678,9 @@ function mjComputeHint(){
     if(o.pong)lines.push(`碰：向聽 ${sn(e.s0)} → ${sn(e.pong)}${e.value?'，而且是有台的字牌':''}`);
     if(o.chow)lines.push(`吃：向聽 ${sn(e.s0)} → ${sn(e.chow)}`);
     if(e.menq&&(o.pong||o.chow))lines.push(`吃或碰會失去門清（${M.R.tai.menqing} 台）與不求人的機會`);
-    r.lines=lines;M.hint=r;return;
+    r.lines=lines;
+    if(typeof mjExplainClaim==='function')try{r.ex=mjExplainClaim(r,o,k);}catch(_){r.ex=null;}
+    M.hint=r;return;
   }
   M.hint=null;
 }

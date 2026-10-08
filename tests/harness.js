@@ -10,7 +10,7 @@ function makeSandbox(){
     document:{addEventListener(){}},window:{},localStorage:{_:{},getItem(k){return this._[k]||null},setItem(k,v){this._[k]=String(v)},removeItem(k){delete this._[k]}}};
   vm.createContext(ctx);
   const code=[
-    part('poker_core.js'),part('mj.js'),
+    part('poker_core.js'),part('mj.js'),part('explain.js'),
     part('learn.js','// LEARN DATA START','// LEARN DATA END'),
     part('stats.js','// STATS START','// STATS END'),
     `var VIEW='test';var REPLAY={on:false};var LDONE=new Set();
